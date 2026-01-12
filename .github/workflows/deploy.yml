@@ -110,6 +110,14 @@ jobs:
       - name: Build with Gradle
         run: ./gradlew clean build -x test
 
+      # [중요] 빌드된 파일 중 실행 가능한 Jar만 남기고 이름을 app.jar로 변경
+      - name: Rename JAR
+        run: |
+          # plain jar는 필요 없으므로 삭제 (혼동 방지)
+          rm build/libs/*-plain.jar
+          # 남은 실행 가능한 jar를 app.jar로 이름 변경
+          mv build/libs/*.jar build/libs/app.jar
+
       - name: Get GitHub Actions IP
         id: ip
         uses: haythem/public-ip@v1.2
@@ -129,7 +137,8 @@ jobs:
       - name: Wait for Security Group to Update
         run: sleep 10
 
-      - name: Deploy to EC2
+      # 1. 기존 파일 정리 (SSH Action)
+      - name: Clean up remote server
         uses: appleboy/ssh-action@master
         with:
           host: ${{ secrets.EC2_HOST }}
@@ -138,12 +147,11 @@ jobs:
           port: 22
           timeout: 60s
           script: |
-            # 1. 기존 서비스 중지 (오류 무시)
             sudo systemctl stop scamguard || true
-                  
-            # 2. 기존 파일 백업 (선택 사항, 필요 없으면 제거 가능)
-            sudo mv /opt/scamguard/app.jar /opt/scamguard/app.jar.bak || true
+            # [중요] 기존에 잘못 생성된 디렉토리이건 파일이건 강제로 삭제
+            sudo rm -rf /opt/scamguard/app.jar
 
+      # 2. 파일 전송 (SCP Action)
       - name: Copy JAR to EC2
         uses: appleboy/scp-action@master
         with:
@@ -151,11 +159,13 @@ jobs:
           username: ${{ secrets.EC2_USER }}
           key: ${{ secrets.EC2_SSH_KEY }}
           port: 22
-          source: "build/libs/*.jar"
+          # 위에서 이름을 바꿨으므로 명시적인 파일명 사용
+          source: "build/libs/app.jar"
           target: "/opt/scamguard/app.jar"
-          # 소스 경로(build/libs) 제거하고 파일 내용만 target으로 덮어쓰기
+          # 소스 경로(build/libs) 제거
           strip_components: 2
 
+      # 3. 애플리케이션 시작 (SSH Action)
       - name: Start Application
         uses: appleboy/ssh-action@master
         with:
@@ -165,13 +175,8 @@ jobs:
           port: 22
           timeout: 60s
           script: |
-            # 파일 권한 설정 (실행 권한 부여)
             sudo chmod +x /opt/scamguard/app.jar
-            
-            # 서비스 시작
             sudo systemctl start scamguard
-            
-            # 상태 확인 (실패 시 로그 출력)
             sudo systemctl status scamguard --no-pager -l
 
       - name: Remove GitHub Actions IP from Security Group
