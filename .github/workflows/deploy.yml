@@ -1,7 +1,6 @@
 name: Deploy to EC2
 
 on:
-  workflow_dispatch:
   push:
     branches: [ main ]
 
@@ -22,13 +21,10 @@ jobs:
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
 
-      - name: Build with Gradle
-        run: ./gradlew clean build -x test
-
       - name: Create application.yml
         run: |
           mkdir -p src/main/resources
-          cat > src/main/resources/application.yml << EOF
+          cat > src/main/resources/application.yml << 'EOF'
           spring:
             ai:
               openai:
@@ -49,9 +45,9 @@ jobs:
             data:
               redis:
                 port: 6379
-                host: ${{ secrets.REDIS_HOST }}
+                host: localhost
               mongodb:
-                host: ${{ secrets.MONGODB_HOST }}
+                host: localhost
                 port: 27017
                 database: scamguard
             jpa:
@@ -110,8 +106,27 @@ jobs:
                 model: deepseek/deepseek-r1-0528:free
           EOF
 
-      - name: Rebuild with secrets
+      - name: Build with Gradle
         run: ./gradlew clean build -x test
+
+      - name: Get GitHub Actions IP
+        id: ip
+        uses: haythem/public-ip@v1.2
+
+      - name: Add GitHub Actions IP to Security Group
+        run: |
+          aws ec2 authorize-security-group-ingress \
+            --group-id ${{ secrets.AWS_SG_ID }} \
+            --protocol tcp \
+            --port 22 \
+            --cidr ${{ steps.ip.outputs.ipv4 }}/32
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_DEFAULT_REGION: ap-northeast-2
+
+      - name: Wait for Security Group to Update
+        run: sleep 10
 
       - name: Deploy to EC2
         env:
@@ -127,13 +142,28 @@ jobs:
             build/libs/*.jar ${USER}@${HOST}:/opt/scamguard/app.jar
           
           # 애플리케이션 재시작
-          ssh -i private_key.pem -o StrictHostKeyChecking=no ${USER}@${HOST} << 'EOF'
+          ssh -i private_key.pem -o StrictHostKeyChecking=no ${USER}@${HOST} << 'ENDSSH'
             # 기존 프로세스 종료
             sudo systemctl stop scamguard || true
           
             # 새 버전 시작
             sudo systemctl start scamguard
+          
+            # 상태 확인
             sudo systemctl status scamguard
-          EOF
+          ENDSSH
           
           rm -f private_key.pem
+
+      - name: Remove GitHub Actions IP from Security Group
+        if: always()
+        run: |
+          aws ec2 revoke-security-group-ingress \
+            --group-id ${{ secrets.AWS_SG_ID }} \
+            --protocol tcp \
+            --port 22 \
+            --cidr ${{ steps.ip.outputs.ipv4 }}/32
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_DEFAULT_REGION: ap-northeast-2
