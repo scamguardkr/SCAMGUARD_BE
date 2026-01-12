@@ -1,0 +1,139 @@
+name: Deploy to EC2
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'corretto'
+
+      - name: Grant execute permission for gradlew
+        run: chmod +x gradlew
+
+      - name: Build with Gradle
+        run: ./gradlew clean build -x test
+
+      - name: Create application.yml
+        run: |
+          mkdir -p src/main/resources
+          cat > src/main/resources/application.yml << EOF
+          spring:
+            ai:
+              openai:
+                api-key: ${{ secrets.OPENAI_API_KEY }}
+                chat:
+                  options:
+                    model: gpt-5-nano
+                    temperature: 1
+            application:
+              name: scamguard
+            web:
+              resources:
+                add-mappings: false
+            flyway:
+              enabled: true
+              baseline-on-migrate: true
+              locations: classpath:db/migration
+            data:
+              redis:
+                port: 6379
+                host: ${{ secrets.REDIS_HOST }}
+              mongodb:
+                host: ${{ secrets.MONGODB_HOST }}
+                port: 27017
+                database: scamguard
+            jpa:
+              properties:
+                hibernate:
+                  default_batch_fetch_size: 100
+                  show_sql: false
+                  format_sql: false
+              hibernate:
+                ddl-auto: none
+            servlet:
+              multipart:
+                max-file-size: 10MB
+                max-request-size: 10MB
+            datasource:
+              driver-class-name: com.mysql.cj.jdbc.Driver
+              url: ${{ secrets.DB_URL }}
+              username: ${{ secrets.DB_USERNAME }}
+              password: ${{ secrets.DB_PASSWORD }}
+          
+          jwt:
+            secret-key: ${{ secrets.JWT_SECRET_KEY }}
+            access-token:
+              expiration-time: 1200000
+            refresh-token:
+              expiration-time: 604800000
+          
+          server:
+            tomcat:
+              max-http-form-post-size: 10MB
+            servlet:
+              encoding:
+                force-response: true
+          
+          logging:
+            level:
+              kr.cse.scamguard: INFO
+              org:
+                springframework:
+                  security: WARN
+          
+          swagger:
+            server-url: http://${{ secrets.EC2_HOST }}
+          
+          springdoc:
+            writer-with-default-pretty-printer: true
+          
+          cors:
+            allowed-origins: http://localhost:3000,http://127.0.0.1:3000
+          
+          app:
+            ai:
+              openrouter:
+                api-key: ${{ secrets.OPENROUTER_API_KEY }}
+                base-url: https://openrouter.ai/api
+                model: deepseek/deepseek-r1-0528:free
+          EOF
+
+      - name: Rebuild with secrets
+        run: ./gradlew clean build -x test
+
+      - name: Deploy to EC2
+        env:
+          PRIVATE_KEY: ${{ secrets.EC2_SSH_KEY }}
+          HOST: ${{ secrets.EC2_HOST }}
+          USER: ${{ secrets.EC2_USER }}
+        run: |
+          echo "$PRIVATE_KEY" > private_key.pem
+          chmod 600 private_key.pem
+          
+          # JAR 파일 복사
+          scp -i private_key.pem -o StrictHostKeyChecking=no \
+            build/libs/*.jar ${USER}@${HOST}:/opt/scamguard/app.jar
+          
+          # 애플리케이션 재시작
+          ssh -i private_key.pem -o StrictHostKeyChecking=no ${USER}@${HOST} << 'EOF'
+            # 기존 프로세스 종료
+            sudo systemctl stop scamguard || true
+          
+            # 새 버전 시작
+            sudo systemctl start scamguard
+            sudo systemctl status scamguard
+          EOF
+          
+          rm -f private_key.pem
