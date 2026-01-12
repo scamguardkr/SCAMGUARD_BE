@@ -129,32 +129,33 @@ jobs:
       - name: Wait for Security Group to Update
         run: sleep 10
 
-      - name: Deploy to EC2
-        env:
-          PRIVATE_KEY: ${{ secrets.EC2_SSH_KEY }}
-          HOST: ${{ secrets.EC2_HOST }}
-          USER: ${{ secrets.EC2_USER }}
-        run: |
-          echo "$PRIVATE_KEY" > private_key.pem
-          chmod 600 private_key.pem
-          
-          # JAR 파일 복사
-          scp -i private_key.pem -o StrictHostKeyChecking=no \
-            build/libs/*.jar ${USER}@${HOST}:/opt/scamguard/app.jar
-          
-          # 애플리케이션 재시작
-          ssh -i private_key.pem -o StrictHostKeyChecking=no ${USER}@${HOST} << 'ENDSSH'
-            # 기존 프로세스 종료
+      - name: Copy JAR to EC2
+        uses: appleboy/scp-action@master
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          port: 22
+          source: "build/libs/*.jar"
+          target: "/opt/scamguard/"
+          strip_components: 2
+
+      - name: Execute remote ssh commands
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          port: 22
+          timeout: 60s
+          debug: true
+          script: |
+            sudo mv -f /opt/scamguard/*.jar /opt/scamguard/app.jar
+            
+            # 서비스 재시작
             sudo systemctl stop scamguard || true
-          
-            # 새 버전 시작
             sudo systemctl start scamguard
-          
-            # 상태 확인
             sudo systemctl status scamguard
-          ENDSSH
-          
-          rm -f private_key.pem
 
       - name: Remove GitHub Actions IP from Security Group
         if: always()
