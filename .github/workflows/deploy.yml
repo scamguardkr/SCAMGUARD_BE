@@ -129,6 +129,21 @@ jobs:
       - name: Wait for Security Group to Update
         run: sleep 10
 
+      - name: Deploy to EC2
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          port: 22
+          timeout: 60s
+          script: |
+            # 1. 기존 서비스 중지 (오류 무시)
+            sudo systemctl stop scamguard || true
+                  
+            # 2. 기존 파일 백업 (선택 사항, 필요 없으면 제거 가능)
+            sudo mv /opt/scamguard/app.jar /opt/scamguard/app.jar.bak || true
+
       - name: Copy JAR to EC2
         uses: appleboy/scp-action@master
         with:
@@ -137,10 +152,11 @@ jobs:
           key: ${{ secrets.EC2_SSH_KEY }}
           port: 22
           source: "build/libs/*.jar"
-          target: "/opt/scamguard/"
+          target: "/opt/scamguard/app.jar"
+          # 소스 경로(build/libs) 제거하고 파일 내용만 target으로 덮어쓰기
           strip_components: 2
 
-      - name: Execute remote ssh commands
+      - name: Start Application
         uses: appleboy/ssh-action@master
         with:
           host: ${{ secrets.EC2_HOST }}
@@ -148,14 +164,15 @@ jobs:
           key: ${{ secrets.EC2_SSH_KEY }}
           port: 22
           timeout: 60s
-          debug: true
           script: |
-            sudo mv -f /opt/scamguard/*.jar /opt/scamguard/app.jar
+            # 파일 권한 설정 (실행 권한 부여)
+            sudo chmod +x /opt/scamguard/app.jar
             
-            # 서비스 재시작
-            sudo systemctl stop scamguard || true
+            # 서비스 시작
             sudo systemctl start scamguard
-            sudo systemctl status scamguard
+            
+            # 상태 확인 (실패 시 로그 출력)
+            sudo systemctl status scamguard --no-pager -l
 
       - name: Remove GitHub Actions IP from Security Group
         if: always()
