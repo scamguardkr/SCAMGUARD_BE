@@ -34,6 +34,8 @@ dependencies {
 	implementation("org.flywaydb:flyway-mysql")
 	implementation("org.jetbrains.kotlin:kotlin-reflect")
 	implementation("org.springframework.ai:spring-ai-starter-model-openai")
+	implementation("org.springframework.ai:spring-ai-starter-model-google-genai-embedding")
+	implementation("org.springframework.boot:spring-boot-starter-data-elasticsearch")
 	implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:2.8.9")
 	implementation("org.reflections:reflections:0.10.2")
 	implementation("org.jetbrains.kotlin:kotlin-reflect")

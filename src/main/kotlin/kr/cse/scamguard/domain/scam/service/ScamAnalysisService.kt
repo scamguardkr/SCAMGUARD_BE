@@ -1,6 +1,7 @@
 package kr.cse.scamguard.domain.scam.service
 
 import kr.cse.scamguard.domain.scam.dto.AiModelType
+import kr.cse.scamguard.domain.scam.dto.ScamAnalysisModelResponse
 import kr.cse.scamguard.domain.scam.model.AnalysisDetails
 import kr.cse.scamguard.domain.scam.model.RiskLevel
 import kr.cse.scamguard.domain.scam.dto.ScamAnalysisRequest
@@ -64,6 +65,10 @@ class ScamAnalysisService(
         return response
     }
 
+    fun getAvailableModels(): ScamAnalysisModelResponse {
+        return ScamAnalysisModelResponse(AiModelType.entries)
+    }
+
     private fun saveAnalysis(
         userId: Long,
         request: ScamAnalysisRequest,
@@ -76,7 +81,6 @@ class ScamAnalysisService(
             log.info("분석 결과 저장 완료 - 사용자: {}", userId)
         } catch (e: Exception) {
             log.error("분석 결과 저장 실패", e)
-            // 저장 실패해도 분석 결과는 반환
         }
     }
 

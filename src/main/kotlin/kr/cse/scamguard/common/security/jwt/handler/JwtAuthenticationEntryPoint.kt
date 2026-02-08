@@ -23,6 +23,7 @@ class JwtAuthenticationEntryPoint(
     ) {
         if (authException != null) {
             log.info("오류: {}", authException.message)
+            log.info("로그: {}", authException.stackTraceToString())
         }
 
         val errorCode = when (authException) {

@@ -70,4 +70,46 @@ class LlmConfiguration {
             )
             .build()
     }
+
+    @Bean(name = ["gptOss120BChatModel"])
+    fun gptOss120BChatModel(
+        @Value("\${app.ai.openrouter.api-key}") apiKey: String,
+        @Value("\${app.ai.openrouter.base-url}") baseUrl: String,
+    ): OpenAiChatModel {
+        val openAiApi = OpenAiApi.builder()
+            .baseUrl(baseUrl)
+            .apiKey(apiKey)
+            .build()
+
+        return OpenAiChatModel.builder()
+            .openAiApi(openAiApi)
+            .defaultOptions(
+                OpenAiChatOptions.builder()
+                    .model("openai/gpt-oss-120b:free")
+                    .temperature(1.0)
+                    .build()
+            )
+            .build()
+    }
+
+    @Bean(name = ["solarPro3ChatModel"])
+    fun solarPro3ChatModel(
+        @Value("\${app.ai.openrouter.api-key}") apiKey: String,
+        @Value("\${app.ai.openrouter.base-url}") baseUrl: String,
+    ): OpenAiChatModel {
+        val openAiApi = OpenAiApi.builder()
+            .baseUrl(baseUrl)
+            .apiKey(apiKey)
+            .build()
+
+        return OpenAiChatModel.builder()
+            .openAiApi(openAiApi)
+            .defaultOptions(
+                OpenAiChatOptions.builder()
+                    .model("upstage/solar-pro-3:free")
+                    .temperature(1.0)
+                    .build()
+            )
+            .build()
+    }
 }

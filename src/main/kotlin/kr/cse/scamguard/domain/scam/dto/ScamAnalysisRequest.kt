@@ -8,5 +8,5 @@ data class ScamAnalysisRequest(
 )
 
 enum class AiModelType {
-    OPENAI, DEEPSEEK_R1_0528, LLAMA_3_1_405B
+    GPT_5_NANO, DEEPSEEK_R1_0528, LLAMA_3_1_405B, GPT_OSS_120B, SOLAR_PRO_3
 }
