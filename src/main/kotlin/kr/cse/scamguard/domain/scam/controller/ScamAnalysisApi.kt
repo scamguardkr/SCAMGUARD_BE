@@ -5,16 +5,11 @@ import io.swagger.v3.oas.annotations.tags.Tag
 import kr.cse.scamguard.common.apidocs.ApiResponseCodes
 import kr.cse.scamguard.common.model.CommonResponse
 import kr.cse.scamguard.common.security.SecurityUserDetails
-import kr.cse.scamguard.domain.scam.dto.AiModelType
-import kr.cse.scamguard.domain.scam.dto.ScamAnalysisModelResponse
-import kr.cse.scamguard.domain.scam.dto.ScamAnalysisRequest
+import kr.cse.scamguard.domain.scam.dto.*
 import kr.cse.scamguard.domain.scam.model.ScamAnalysisResponse
 import org.springframework.security.access.prepost.PreAuthorize
 import org.springframework.security.core.annotation.AuthenticationPrincipal
-import org.springframework.web.bind.annotation.GetMapping
-import org.springframework.web.bind.annotation.PostMapping
-import org.springframework.web.bind.annotation.RequestBody
-import org.springframework.web.bind.annotation.RequestParam
+import org.springframework.web.bind.annotation.*
 
 @Tag(name = "(Normal) ScamAnalysis: 사기 분석", description = "사용자 입력을 이용하여 사기 여부를 분석한다")
 interface ScamAnalysisApi {
@@ -44,4 +39,50 @@ interface ScamAnalysisApi {
     )
     @GetMapping("/api/v1/scam/model/available")
     fun getAvailableModels() : CommonResponse<ScamAnalysisModelResponse>
+
+    @ApiResponseCodes(value = [
+        "CommonSuccessCode.OK",
+        "UserErrorCode.NOT_FOUND_USER",
+        "CommonErrorCode.MISSING_OR_INVALID_AUTHENTICATION_CREDENTIALS",
+        "CommonErrorCode.ACCESS_TO_THE_REQUESTED_RESOURCE_IS_FORBIDDEN",
+        "JwtErrorCode.FAILED_AUTHENTICATION",
+        "JwtErrorCode.EXPIRED_TOKEN",
+        "JwtErrorCode.MALFORMED_TOKEN",
+        "JwtErrorCode.TAMPERED_TOKEN"
+    ])
+    @Operation(
+        summary = "사기 분석 AI 호출 리스트",
+        description = "<h3>사기 분석 AI 호출 리스트</h3><ul><li>...</li></ul>"
+    )
+    @PreAuthorize("isAuthenticated()")
+    @GetMapping("/api/v1/scam/analyze/results")
+    fun getUserAnalyzeReportList(
+        @RequestParam(name = "page", defaultValue = "1") page: Int,
+        @RequestParam(name = "limit", defaultValue = "10", required = false) limit: Int,
+        @AuthenticationPrincipal user: SecurityUserDetails
+    ) : CommonResponse<ScamAnalysisHistoryPageResponse>
+
+    @ApiResponseCodes(value = [
+        "CommonSuccessCode.OK",
+        "UserErrorCode.NOT_FOUND_USER",
+        "ScamErrorCode.NOT_FOUND_DOCUMENT",
+        "ScamErrorCode.ACCESS_DENIED",
+        "CommonErrorCode.MISSING_OR_INVALID_AUTHENTICATION_CREDENTIALS",
+        "CommonErrorCode.ACCESS_TO_THE_REQUESTED_RESOURCE_IS_FORBIDDEN",
+        "JwtErrorCode.FAILED_AUTHENTICATION",
+        "JwtErrorCode.EXPIRED_TOKEN",
+        "JwtErrorCode.MALFORMED_TOKEN",
+        "JwtErrorCode.TAMPERED_TOKEN",
+
+    ])
+    @Operation(
+        summary = "사기 분석 AI 호출 보고서",
+        description = "<h3>사기 분석 AI 보고서</h3><ul><li>...</li></ul>"
+    )
+    @PreAuthorize("isAuthenticated()")
+    @GetMapping("/api/v1/scam/analyze/result/{id}")
+    fun getUserDetailAnalyzeReport(
+        @AuthenticationPrincipal user: SecurityUserDetails,
+        @PathVariable id: String
+    ): CommonResponse<ScamAnalysisDetailResponse>
 }

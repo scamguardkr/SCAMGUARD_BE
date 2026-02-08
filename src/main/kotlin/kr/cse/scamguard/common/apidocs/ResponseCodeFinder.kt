@@ -9,6 +9,7 @@ class ResponseCodeFinder {
     private val packagesToScan = listOf(
         "kr.cse.scamguard.common.exception",
         "kr.cse.scamguard.domain.user.exception",
+        "kr.cse.scamguard.domain.scam.exception",
         "kr.cse.scamguard.common.security.jwt.exception"
     )
 
