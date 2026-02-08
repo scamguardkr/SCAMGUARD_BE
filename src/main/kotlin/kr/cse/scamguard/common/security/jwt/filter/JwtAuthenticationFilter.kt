@@ -45,10 +45,13 @@ class JwtAuthenticationFilter(
             authenticateUser(userDetails, request)
             filterChain.doFilter(request, response)
         } catch (e: JwtAuthenticationException) {
+            log.info(e.message)
             throw e
         } catch (e: JwtErrorException) {
+            log.info(e.message)
             throw JwtAuthenticationException(e.errorCode)
         } catch (e: Exception) {
+            log.info(e.message)
             throw JwtAuthenticationException(JwtErrorCode.UNEXPECTED_ERROR)
         }
     }

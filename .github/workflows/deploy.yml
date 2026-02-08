@@ -34,6 +34,18 @@ jobs:
                   options:
                     model: gpt-5-nano
                     temperature: 1
+              google:
+                genai:
+                  embedding:
+                    api-key: ${{ secrets.GOOGLE_API_KEY }}
+                    text:
+                      options:
+                        model: gemini-embedding-001
+                        task-type: RETRIEVAL_DOCUMENT
+                        dimensions: 3072
+              model:
+                embedding:
+                  text: google-genai
             application:
               name: scamguard
             web:
@@ -97,7 +109,7 @@ jobs:
             writer-with-default-pretty-printer: true
           
           cors:
-            allowed-origins: http://localhost:3000,http://127.0.0.1:3000
+            allowed-origins: http://localhost:3000,http://127.0.0.1:3000,http://localhost:5173,http://127.0.0.1:5173
           
           app:
             ai:
@@ -105,6 +117,17 @@ jobs:
                 api-key: ${{ secrets.OPENROUTER_API_KEY }}
                 base-url: https://openrouter.ai/api
                 model: deepseek/deepseek-r1-0528:free
+            embedding:
+              provider: gemini
+              model-name: gemini-embedding-001
+              dimensions: 3072
+              chunk-size: 600
+              chunk-overlap: 100
+          
+          spring.elasticsearch:
+            uris: http://localhost:9200
+            username: elastic
+            password: ${{ secrets.ELASTIC_PASSWORD }}
           EOF
 
       - name: Build with Gradle
@@ -159,10 +182,8 @@ jobs:
           username: ${{ secrets.EC2_USER }}
           key: ${{ secrets.EC2_SSH_KEY }}
           port: 22
-          # 위에서 이름을 바꿨으므로 명시적인 파일명 사용
           source: "build/libs/app.jar"
           target: "/opt/scamguard/app.jar"
-          # 소스 경로(build/libs) 제거
           strip_components: 2
 
       # 3. 애플리케이션 시작 (SSH Action)

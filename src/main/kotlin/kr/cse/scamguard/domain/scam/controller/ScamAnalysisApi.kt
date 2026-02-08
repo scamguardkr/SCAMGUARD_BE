@@ -6,10 +6,12 @@ import kr.cse.scamguard.common.apidocs.ApiResponseCodes
 import kr.cse.scamguard.common.model.CommonResponse
 import kr.cse.scamguard.common.security.SecurityUserDetails
 import kr.cse.scamguard.domain.scam.dto.AiModelType
+import kr.cse.scamguard.domain.scam.dto.ScamAnalysisModelResponse
 import kr.cse.scamguard.domain.scam.dto.ScamAnalysisRequest
 import kr.cse.scamguard.domain.scam.model.ScamAnalysisResponse
 import org.springframework.security.access.prepost.PreAuthorize
 import org.springframework.security.core.annotation.AuthenticationPrincipal
+import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestParam
@@ -31,4 +33,15 @@ interface ScamAnalysisApi {
         @RequestParam(name = "model") aiModelType: AiModelType,
         @AuthenticationPrincipal user: SecurityUserDetails
     ): CommonResponse<ScamAnalysisResponse>
+
+    @Operation(
+        summary = "현재 활성 분석 모델 정보 조회",
+        description = """
+            현재 분석에 사용할 수 있는 AI 모델 정보를 조회합니다.
+            
+            분석 API 호출 전에 이 정보를 확인하여 호환성을 체크할 수 있습니다.
+        """
+    )
+    @GetMapping("/api/v1/scam/model/available")
+    fun getAvailableModels() : CommonResponse<ScamAnalysisModelResponse>
 }
